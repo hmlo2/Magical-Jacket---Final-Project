@@ -1,0 +1,119 @@
+#include <Adafruit_NeoPixel.h>
+
+#include <Wire.h>
+
+#include <LiquidCrystal_I2C.h>
+
+#include "Adafruit_MCP9808.h"
+
+LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x27 for a 16 chars and 2 line display
+
+#define PIN 6
+
+#define NUMPIXELS 4
+
+Adafruit_NeoPixel pixels(4, 6, NEO_GRB + NEO_KHZ800);
+
+Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();
+
+#ifdef __AVR__
+
+#include <avr/power.h>
+
+#endif
+
+int delayval = 500;
+
+const int trigPin = 2;
+
+const int echoPin = 3;
+
+void setup() {
+  pixels.begin();
+  lcd.init();
+  lcd.backlight();
+  Serial.begin(9600);
+  while (!Serial);
+  Serial.println("MCP9808 demo");
+
+  if (!tempsensor.begin(0x18)) {
+    Serial.println("Couldn't find MCP9808! Check your connections and verify the address is correct.");
+    while (1);
+  }
+  Serial.println("Found MCP9808!");
+  tempsensor.setResolution(3);
+}
+
+void loop() {
+  //pixels.clear();
+  Serial.println("wake up MCP9808.... ");
+  tempsensor.wake();
+  Serial.print("Resolution in mode: ");
+  Serial.println (tempsensor.getResolution());
+  float c = tempsensor.readTempC();
+
+  if (c > 27) {
+    //    for (int i = 0; i < 16; i++) {
+    lcd.clear();
+    lcd.setCursor(3, 0);
+    lcd.print("I AM HOT!");
+    lcd.setCursor(2, 1);
+    lcd.print("COOL ME DOWN!");
+    //}
+  } else {
+    lcd.clear();
+  }
+
+  Serial.print("Temp: ");
+  Serial.print(c, 4); Serial.print("*C\t and ");
+
+  Serial.println("Shutdown MCP9808.... ");
+  tempsensor.shutdown_wake(1);
+  Serial.println("");
+  
+  long duration, inches, cm;
+
+  pinMode(trigPin, OUTPUT);
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  pinMode(echoPin, INPUT);
+  duration = pulseIn(echoPin, HIGH);
+
+  inches = microsecondsToInches(duration);
+  cm = microsecondsToCentimeters(duration);
+
+  if (inches < 4)
+  {
+    for (int i = 0; i < NUMPIXELS; i++) {
+      pixels.setPixelColor(i,pixels.Color(255, 0, 0) );
+      pixels.show();
+    }
+
+  }
+  else if (inches > 4 && inches < 10) {
+    for (int i = 0; i < NUMPIXELS; i++) {
+      pixels.setPixelColor(i, pixels.Color(random(255), random(255), random(255)));
+      pixels.show();
+    }
+  }
+
+  Serial.print(inches);
+  Serial.print("in, ");
+  Serial.print(cm);
+  Serial.print("cm");
+  Serial.println();
+}
+
+long microsecondsToInches(long microseconds)
+{
+  return microseconds / 74 / 2;
+}
+
+long microsecondsToCentimeters(long microseconds)
+{
+  return microseconds / 29 / 2;
+}
